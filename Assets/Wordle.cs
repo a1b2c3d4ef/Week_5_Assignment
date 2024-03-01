@@ -122,7 +122,9 @@ public class Wordle : MonoBehaviour
             if (Helper_GetColor(i).Equals(Color.white))
             {
                 Helper_SetColor(Color.grey, i);
-                if (!list_greyWord.Contains(array_playerAnswer_check[i]))
+                if (!list_greyWord.Contains(array_playerAnswer_check[i]) 
+                    && !list_yellowWord.Contains(array_playerAnswer_check[i])
+                    && !array_greenChar.Contains(array_playerAnswer_check[i]))
                     list_greyWord.Add(array_playerAnswer_check[i]);
             }
         }
@@ -169,7 +171,7 @@ public class Wordle : MonoBehaviour
     }
     private bool IsContainGreyCharacters()
     {
-        if(list_greyWord.Count > 0)
+        if (list_greyWord.Count > 0)
             foreach (char letter in list_greyWord)
                 if (array_playerAnswer_check.Contains(letter))
                     return true;
