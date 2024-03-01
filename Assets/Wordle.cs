@@ -17,13 +17,19 @@ public class Wordle : MonoBehaviour
     private TMP_InputField input_playerAnswer;
 
     private GameObject[] array_wordLines_UI;
-    private string[] array_allowAnswer, array_possibleAnswer;
-    private char[] array_playerAnswer_check, array_botAnswer_check; // For Checking Result Only
+    private string[] array_allowAnswer, array_possibleAnswer, array_duplicateAnswer;
+    private char[] array_playerAnswer_check, array_botAnswer_check, array_greenChar;
+    private List<char> list_yellowWord, list_greyWord;
     private int int_wordLineOffsetY = 50, int_currentLineAndChance = 0;
     private string string_botAnswer;
 
     private void Start()
     {
+        list_yellowWord = new List<char>();
+        list_greyWord = new List<char>();
+        array_greenChar = new char[6];
+        array_duplicateAnswer = new string[6];
+        array_wordLines_UI = new GameObject[6];
         SETUP_SpawnWordLines();
         SETUP_GetAnswerList();
         SETUP_GetRandomAnswer();
@@ -32,9 +38,9 @@ public class Wordle : MonoBehaviour
     }
     private void Update()
     {
-        SubmitAnswer();
+        SubmitAnswerByKeyPad();
     }
-    private void SubmitAnswer()     // Ignore
+    private void SubmitAnswerByKeyPad()     // Ignore
     {
         if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
         {
@@ -53,19 +59,20 @@ public class Wordle : MonoBehaviour
             array_playerAnswer_check = input_playerAnswer.text.ToLower().Trim().ToArray();
             array_botAnswer_check = string_botAnswer.ToArray();
 
-            if (IsValidAnswer())   
+            if (IsValidAnswer() && IsMeetingExpertRule() && !IsDuplicate())   
             {
                 Handler_SetLineColor();
-                input_playerAnswer.GetComponent<Image>().color = Color.white; // Input field box's color
+                input_playerAnswer.GetComponent<Image>().color = Color.white;
+                array_duplicateAnswer[int_currentLineAndChance] = input_playerAnswer.text.ToLower().Trim();
                 int_currentLineAndChance++;
             }
             else
                 input_playerAnswer.GetComponent<Image>().color = Color.red; 
 
-            if (IsSame())   
+            if (IsMatch())   
                 int_currentLineAndChance = 6;
             if (int_currentLineAndChance == 6)  
-                Handler_EndGame(IsSame() ? true : false);
+                Handler_EndGame(IsMatch() ? true : false);
         }
     }
     private void Handler_EndGame(bool isWin)
@@ -94,6 +101,7 @@ public class Wordle : MonoBehaviour
             {
                 Helper_SetColor(Color.green, i);
                 array_botAnswer_check[i] ='0';
+                array_greenChar[i] = array_playerAnswer_check[i];
             }
     }
     private void Handler_SetYellow()
@@ -103,14 +111,20 @@ public class Wordle : MonoBehaviour
             {
                 Helper_SetColor(Color.yellow, i);
                 array_botAnswer_check[Helper_IndexOf(array_playerAnswer_check[i])] = '0';
+                if (!list_yellowWord.Contains(array_playerAnswer_check[i]))
+                    list_yellowWord.Add(array_playerAnswer_check[i]);
             }
     }
     private void Handler_SetGrey()
     {
         for (int i = 0; i < array_playerAnswer_check.Length; i++)
         {
-            if(Helper_GetColor(i).Equals(Color.white))
+            if (Helper_GetColor(i).Equals(Color.white))
+            {
                 Helper_SetColor(Color.grey, i);
+                if (!list_greyWord.Contains(array_playerAnswer_check[i]))
+                    list_greyWord.Add(array_playerAnswer_check[i]);
+            }
         }
     }
     private int Helper_IndexOf(char letter) // Find index of Character in array_botAnswer_check version
@@ -134,7 +148,38 @@ public class Wordle : MonoBehaviour
         Image currentLetterUI = currentLine.GetChild(index).GetComponent<Image>();
         currentLetterUI.color = color;
     }
-    private bool IsSame()
+    private bool IsMeetingExpertRule()
+    {
+        return IsContainGreenCharacters() && IsContainYellowCharacters() && !IsContainGreyCharacters();
+    }
+    private bool IsContainGreenCharacters()
+    {
+        for (int i = 0; i < array_greenChar.Length; i++)
+            if (array_greenChar[i] != '\0' && !array_greenChar[i].Equals(array_playerAnswer_check[i]))
+                return false;
+        return true;
+    }
+    private bool IsContainYellowCharacters()
+    {
+        if (list_yellowWord.Count > 0)
+            foreach (char letter in list_yellowWord)
+                if (!array_playerAnswer_check.Contains(letter))
+                    return false;
+        return true;
+    }
+    private bool IsContainGreyCharacters()
+    {
+        if(list_greyWord.Count > 0)
+            foreach (char letter in list_greyWord)
+                if (array_playerAnswer_check.Contains(letter))
+                    return true;
+        return false;
+    }
+    private bool IsDuplicate()
+    { 
+        return array_duplicateAnswer.Contains(input_playerAnswer.text.ToLower().Trim());
+    }
+    private bool IsMatch()
     {
         return input_playerAnswer.text.ToLower().Equals(string_botAnswer);
     }
@@ -160,7 +205,6 @@ public class Wordle : MonoBehaviour
     }
     private void SETUP_SpawnWordLines()     // Set up UI display for turns/lines
     {
-        array_wordLines_UI = new GameObject[6];
         for (int i = 0; i < 6; i++)
         {
             GameObject line = Instantiate(gameObject_wordLinePrefab) as GameObject;
